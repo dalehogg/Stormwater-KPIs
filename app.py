@@ -61,7 +61,7 @@ def kpi_status(val):
         return "fail"
     return "tbc"
 
-@app.route("/api/jobs")
+@app.route("/")
 def get_jobs():
     query = {
         "order_by": "releaseDate",
