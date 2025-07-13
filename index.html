@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Stormwater Jobs</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  th, td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+  th.sortable { cursor: pointer; }
+  .dueSoon { color: red; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Stormwater Jobs <span id="count"></span></h2>
+<label>
+  <input type="checkbox" id="autoRefreshToggle" checked>
+  Auto Refresh
+</label>
+<table id="jobsTable">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Address</th>
+      <th>Job Number</th>
+      <th>Priority</th>
+      <th>Assigned To</th>
+      <th>Start Date</th>
+      <th>Finish Date</th>
+      <th>KPI Start</th>
+      <th>KPI Finish</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<script>
+const API_URL = "http://125.237.241.239:5050/api/jobs";
+const tbody = document.querySelector("#jobsTable tbody");
+const countEl = document.getElementById("count");
+
+function renderTable(jobs) {
+  tbody.innerHTML = "";
+  countEl.textContent = `(${jobs.length})`;
+  jobs.forEach(job => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${job.date_iso || "-"}</td>
+      <td>${job.address}</td>
+      <td>${job.number}</td>
+      <td>${job.priority}</td>
+      <td>${job.assigned_to}</td>
+      <td>${job.start_iso || "-"}</td>
+      <td>${job.finish_iso || "-"}</td>
+      <td class="${job.kpi_start_due_soon ? 'dueSoon' : ''}">${job.kpi_start}</td>
+      <td class="${job.kpi_finish_due_soon ? 'dueSoon' : ''}">${job.kpi_finish}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function loadJobs() {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    renderTable(data.jobs || []);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+loadJobs();
+setInterval(() => {
+  if (document.getElementById('autoRefreshToggle').checked) {
+    loadJobs();
+  }
+}, 60000);
+</script>
+</body>
+</html>

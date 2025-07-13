@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Due Jobs List</title>
+
+    <style>
+
+        body { font-family: sans-serif; padding: 20px; }
+
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+
+        td, th { border: 1px solid #000; padding: 5px; text-align: left; }
+
+        .expired { background-color: #fdd; color: red; }
+
+        .dueSoon { color: red; font-weight: bold; }
+
+        .inputContainer { display: inline-block; margin-top: 10px; }
+
+        .daysInput { padding: 5px; width: 60px; }
+
+        .maxLabel { text-align: center; font-size: 0.85em; margin-top: 2px; }
+
+        button.toggleBtn { padding: 5px 10px; font-size: 0.9em; border-radius: 4px; border: 1px solid #888; background: #f0f0f0; cursor: pointer; transition: background-color 0.3s; }
+
+        button.toggleBtn:hover { background: #ddd; }
+
+        button.refreshBtn { margin-left: 20px; }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h2>
+
+        Jobs due within <span id="currentDays">{{ default_days }}</span> days
+
+        (<span id="jobCount">0</span> jobs)
+
+        <button class="refreshBtn" onclick="loadData()">Refresh</button>
+
+    </h2>
+
+    <div class='inputContainer'>
+
+        <input type='number' id='daysInput' class='daysInput' value='{{ default_days }}' min='1' max='30'>
+
+        <div class='maxLabel'>Max 30</div>
+
+    </div>
+
+    <label style='margin-left:20px;'>
+
+        <input type='checkbox' id='expiredToggle'> Show Expired Jobs
+
+    </label>
+
+    <div id="tableContainer"></div>
+
+
+    <script>
+
+        let jobs = [];
+
+        let openId = null;
+
+
+        function toggleRow(id) {
+
+            if (openId && openId === id) {
+
+                document.getElementById(id).style.display = 'none';
+
+                openId = null;
+
+            } else {
+
+                document.querySelectorAll('.commentRow').forEach(r => r.style.display = 'none');
+
+                document.getElementById(id).style.display = 'table-row';
+
+                openId = id;
+
+            }
+
+        }
+
+
+        function filterJobs() {
+
+            const days = Math.min(parseInt(document.getElementById('daysInput').value) || 30, 30);
+
+            document.getElementById('daysInput').value = days;
+
+            document.getElementById('currentDays').textContent = days;
+
+            const showExpired = document.getElementById('expiredToggle').checked;
+
+            let count = 0;
+
+
+            document.querySelectorAll('#jobsBody tr').forEach(r => {
+
+                if (r.classList.contains('commentRow')) return;
+
+                const diff = parseInt(r.getAttribute('data-diff'));
+
+                const isExpired = r.classList.contains('expired');
+
+                if ((diff >= -days && diff <= days) && (!isExpired || showExpired)) {
+
+                    r.style.display = '';
+
+                    count++;
+
+                } else {
+
+                    r.style.display = 'none';
+
+                }
+
+            });
+
+            document.getElementById('jobCount').textContent = count;
+
+        }
+
+
+        function renderTable() {
+
+            const container = document.getElementById('tableContainer');
+
+            if (!jobs.length) {
+
+                container.innerHTML = "<p>No jobs found in the date range.</p>";
+
+                return;
+
+            }
+
+
+            let html = "<table id='jobsTable'><thead><tr><th>Date</th><th>Address</th><th>Job Number</th><th>Activity Type</th><th>Work Description</th><th>Comments</th></tr></thead><tbody id='jobsBody'>";
+
+            jobs.forEach((job, idx) => {
+
+                const rowClass = job.Expired ? " class='expired'" : (job.DueSoon ? " class='dueSoon'" : "");
+
+                const commentId = `comment${idx}`;
+
+                const descId = `desc${idx}`;
+
+                html += `<tr${rowClass} data-diff='${job.DiffDays}'>` +
+
+                        `<td>${job.Date}</td>` +
+
+                        `<td>${job.Address}</td>` +
+
+                        `<td>${job.JobNumber}</td>` +
+
+                        `<td>${job.ActivityType}</td>` +
+
+                        `<td><button class='toggleBtn' onclick="toggleRow('${descId}')">Description</button></td>` +
+
+                        `<td><button class='toggleBtn' onclick="toggleRow('${commentId}')">Comments</button></td></tr>`;
+
+                html += `<tr id='${descId}' style='display:none;' class='commentRow'><td colspan='6'><span style='font-weight:bold;'>Work Description</span><br>${job.WorkDescription.replace(/\n/g, '<br>')}</td></tr>`;
+
+                html += `<tr id='${commentId}' style='display:none;' class='commentRow'><td colspan='6'><span style='font-weight:bold;'>Comments</span><br>${job.Comments.replace(/\n/g, '<br>')}</td></tr>`;
+
+            });
+
+            html += "</tbody></table>";
+
+            container.innerHTML = html;
+
+            filterJobs();
+
+        }
+
+
+        async function loadData() {
+
+            document.getElementById('tableContainer').innerHTML = "<p>Loading...</p>";
+
+            try {
+
+                const response = await fetch('/api/jobs');
+
+                jobs = await response.json();
+
+                document.getElementById('jobCount').textContent = jobs.length;
+
+                renderTable();
+
+            } catch (err) {
+
+                document.getElementById('tableContainer').innerHTML = "<p>Error loading data.</p>";
+
+            }
+
+        }
+
+
+        document.getElementById('daysInput').addEventListener('input', filterJobs);
+
+        document.getElementById('expiredToggle').addEventListener('change', filterJobs);
+
+
+        window.onload = () => {
+
+            loadData();
+
+        };
+
+    </script>
+
+</body>
+
+</html>
